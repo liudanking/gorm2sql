@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"strconv"
 	"strings"
-	"third/gorm"
 
 	"github.com/liudanking/gorm2sql/util"
 
@@ -62,7 +61,7 @@ func (ms *SqlGenerator) GetCreateTableSql() (string, error) {
 			primaryKeys = append(primaryKeys, columnName)
 		}
 
-		sqlSettings := gorm.ParseTagSetting(util.GetFieldTag(field, "sql").Name)
+		sqlSettings := ParseTagSetting(util.GetFieldTag(field, "sql").Name)
 		if idxName, ok := sqlSettings["INDEX"]; ok {
 			keys := indices[idxName]
 			keys = append(keys, columnName)
@@ -146,7 +145,7 @@ func generateSqlTag(field *ast.Field) (string, error) {
 	var err error
 
 	tagStr := util.GetFieldTag(field, "sql").Name
-	sqlSettings := gorm.ParseTagSetting(tagStr)
+	sqlSettings := ParseTagSetting(tagStr)
 
 	if value, ok := sqlSettings["TYPE"]; ok {
 		sqlType = value
@@ -190,7 +189,7 @@ func generateSqlTag(field *ast.Field) (string, error) {
 
 func getColumnName(field *ast.Field) string {
 	tagStr := util.GetFieldTag(field, "gorm").Name
-	gormSettings := gorm.ParseTagSetting(tagStr)
+	gormSettings := ParseTagSetting(tagStr)
 	if columnName, ok := gormSettings["COLUMN"]; ok {
 		return columnName
 	}
@@ -204,7 +203,7 @@ func getColumnName(field *ast.Field) string {
 
 func isPrimaryKey(field *ast.Field) bool {
 	tagStr := util.GetFieldTag(field, "gorm").Name
-	gormSettings := gorm.ParseTagSetting(tagStr)
+	gormSettings := ParseTagSetting(tagStr)
 	if _, ok := gormSettings["PRIMARY_KEY"]; ok {
 		return true
 	}
@@ -253,4 +252,19 @@ func mysqlTag(field *ast.Field, size int, autoIncrease bool) (string, error) {
 		return "", errors.New(fmt.Sprintf("type %s not supported", typeName))
 
 	}
+}
+
+func ParseTagSetting(str string) map[string]string {
+	tags := strings.Split(str, ";")
+	setting := map[string]string{}
+	for _, value := range tags {
+		v := strings.Split(value, ":")
+		k := strings.TrimSpace(strings.ToUpper(v[0]))
+		if len(v) == 2 {
+			setting[k] = v[1]
+		} else {
+			setting[k] = k
+		}
+	}
+	return setting
 }
