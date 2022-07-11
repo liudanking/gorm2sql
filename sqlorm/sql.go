@@ -15,19 +15,21 @@ import (
 )
 
 type SqlGenerator struct {
-	structName string
-	modelType  *ast.StructType
+	structName      string
+	modelType       *ast.StructType
+	customTableName string
 }
 
-func NewSqlGenerator(typeSpec *ast.TypeSpec) (*SqlGenerator, error) {
+func NewSqlGenerator(typeSpec *ast.TypeSpec, tableName string) (*SqlGenerator, error) {
 	structType, ok := typeSpec.Type.(*ast.StructType)
 	if !ok {
 		return nil, errors.New("typeSpec is not struct type")
 	}
 
 	return &SqlGenerator{
-		structName: typeSpec.Name.Name,
-		modelType:  structType,
+		structName:      typeSpec.Name.Name,
+		modelType:       structType,
+		customTableName: tableName,
 	}, nil
 }
 
@@ -137,6 +139,9 @@ func (ms *SqlGenerator) getStructFieds(node ast.Node) []*ast.Field {
 }
 
 func (ms *SqlGenerator) tableName() string {
+	if len(ms.customTableName) > 0 {
+		return ms.customTableName
+	}
 	return casee.ToSnakeCase(ms.structName)
 }
 
@@ -172,7 +177,14 @@ func generateSqlTag(field *ast.Field) (string, error) {
 			autoIncrease = true
 		}
 
-		sqlType, err = mysqlTag(field, size, autoIncrease)
+		decimalStr := ""
+		if value, ok := sqlSettings["TYPE"]; ok {
+			if strings.Contains(value, "decimal(") {
+				decimalStr = value
+			}
+		}
+
+		sqlType, err = mysqlTag(field, size, autoIncrease, decimalStr)
 		if err != nil {
 			log.Warning("get mysql field tag failed:%v", err)
 			return "", err
@@ -215,7 +227,7 @@ func isPrimaryKey(field *ast.Field) bool {
 	return false
 }
 
-func mysqlTag(field *ast.Field, size int, autoIncrease bool) (string, error) {
+func mysqlTag(field *ast.Field, size int, autoIncrease bool, decimalType string) (string, error) {
 	typeName := ""
 	switch t := field.Type.(type) {
 	case *ast.Ident:
@@ -248,6 +260,11 @@ func mysqlTag(field *ast.Field, size int, autoIncrease bool) (string, error) {
 		return "longtext", nil
 	case "Time":
 		return "datetime", nil
+	case "Decimal":
+		if len(decimalType) > 0 {
+			return decimalType, nil
+		}
+		return "decimal(8,2)", nil
 	default:
 		return "", errors.New(fmt.Sprintf("type %s not supported", typeName))
 

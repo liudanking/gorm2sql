@@ -35,6 +35,10 @@ func SqlCommand() cli.Command {
 				Name:  "out, o",
 				Usage: "output file",
 			},
+			cli.StringFlag{
+				Name:  "table_name, t",
+				Usage: "custom table name",
+			},
 		},
 		Action: SqlCommandAction,
 	}
@@ -65,6 +69,8 @@ func SqlCommandAction(c *cli.Context) error {
 		match, _ := filepath.Match(pattern, structName)
 		return match
 	}
+
+	tableName := c.String("table_name")
 
 	var types []*ast.TypeSpec
 	if !fi.IsDir() {
@@ -109,7 +115,7 @@ func SqlCommandAction(c *cli.Context) error {
 
 	sqls := []string{}
 	for _, typ := range types {
-		ms, err := NewSqlGenerator(typ)
+		ms, err := NewSqlGenerator(typ, tableName)
 		if err != nil {
 			log.Warning("create model struct failed:%v", err)
 			return err
