@@ -260,6 +260,8 @@ func mysqlTag(field *ast.Field, size int, autoIncrease bool, decimalType string)
 		return "longtext", nil
 	case "Time":
 		return "datetime", nil
+	case "DeletedAt":
+		return "datetime", nil
 	case "Decimal":
 		if len(decimalType) > 0 {
 			return decimalType, nil
